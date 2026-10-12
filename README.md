@@ -4,9 +4,15 @@ A Fabric client-side mod for Minecraft 26.2 that aims to recreate Bedrock Editio
 
 **Authors:** ImGatsu, Seo.
 
-**Join our Discord community:** https://discord.gg/S7pRNSxSd
+## Join the Testing Community
 
-It runs directly on **Blaze3D (OpenGL backend)** and **Sodium 0.9.2**, without Iris or a shader pack.
+Want to help improve Natural Visuals? Join our Discord server to participate in testing, report bugs, share feedback, and suggest improvements.
+
+**[Join our Discord Server](https://discord.gg/S7pRNSxSd)**
+
+Your feedback helps us refine the mod and improve the experience before future releases.
+
+Natural Visuals runs directly on **Blaze3D (OpenGL backend)** and **Sodium 0.9.2**, without Iris or a shader pack.
 
 ## Building
 
@@ -58,7 +64,7 @@ Alternatively, edit `config/naturalvisuals.json` and press **F3 + T** to reload 
 
 - Original code: LGPL-3.0.
 - Sodium is used as a dependency.
-- Bedrock sample pack assets and textures originate from Mojang's official Bedrock sample resource pack; its licensing terms must be reviewed before distribution.
+- Bedrock sample pack assets and textures originate from Mojang's official Bedrock sample resource pack; review the applicable licensing terms before distributing them.
 
 ## Credits
 
