@@ -1,198 +1,63 @@
 # Natural Visuals
 
-Fabric-Client-Mod für Minecraft 26.2, die Bedrocks *Vibrant Visuals* nachbauen soll.
-Autoren: ImGatsu, Seo.
+A Fabric client-side mod for Minecraft 26.2 that aims to recreate Bedrock Edition's *Vibrant Visuals*.
 
-Sie läuft direkt auf **Blaze3D (OpenGL-Backend)** und **Sodium 0.9.2**, ohne Iris und ohne Shaderpack.
+**Authors:** ImGatsu, Seo.
 
-## Bauen
+It runs directly on **Blaze3D (OpenGL backend)** and **Sodium 0.9.2**, without Iris or a shader pack.
 
-JDK 25 + Netzwerkzugang (Loom lädt Minecraft, Fabric und Sodium):
+## Building
 
-    ./gradlew build        # -> build/libs/naturalvisuals-0.32.70.jar
-    ./gradlew runClient    # Dev-Client mit Sodium
+Requirements: JDK 25 and an internet connection (Loom downloads Minecraft, Fabric, and Sodium).
 
-In den `mods`-Ordner gehören: diese Jar, Sodium 0.9.2+mc26.2 und Fabric API. **Iris darf nicht installiert sein.**
-Grafik-Backend in den Videoeinstellungen auf **OpenGL** stellen.
-
-Im Log (`logs/latest.log`) muss stehen: `[naturalvisuals] Active on OpenGL ...`.
-Steht dort eine Warnung (Iris, Vulkan) oder ein Shader-Fehler, bleibt die Mod (bzw. der Teil) aus.
-
-## Stand
-
-| Teil | Status |
-|---|---|
-| Terrain-Shader (Sodium) | eigener Shader, Sonnen-/Mondlicht, Schatten |
-| Schattenkarte | Sonne **und** Mond, Terrain (solid + cutout inkl. Gras/Blumen) **und Entities** (Spieler, Mobs, Items, Truhen …), texel-gesnappt, radial verzerrt (feiner nahe am Spieler) |
-| Schatten-Look | Bedrock-artig pixelig: nahe am Spieler eine harte Abfrage pro Texturpixel (1/16 Block), weiter weg gefiltert |
-| Himmel | Bedrock-Farben (Zenit/Horizont), Sonnen-/Mond-Glow mit Ringen, die langsam nach außen wandern, Bedrock-Texturen für Sonne und Mond |
-| Nebel | Vanilla-Nebelfarbe = Horizontfarbe (kein Saum zwischen Gelände und Himmel) |
-| Wasser | Lichtbrechung, Tiefenfärbung, Himmels- und Bildschirm-Spiegelungen (SSR), Sonnen-/Mondglanz, Caustics am Grund (auch beim Tauchen), Lichtstrahlen unter Wasser, Wellen, Unterwasser-Blick wie Bedrock: über einem ein Kreis (Snell-Fenster, ~49°), durch den man Himmel, Wolken (aus der Wolkenkarte, braucht `cloudShadows`), Sonne/Mond und das Ufer sieht, außerhalb spiegelt die Oberfläche das dunkle Wasser; beim Tauchen statt Vanillas dunklem Biom-Wassernebel Bedrocks „reines Wasser“ (Rot wird zuerst geschluckt, Ferne tiefblau wie auf den Bedrock-Screenshots, in jedem Biom gleich, Tag/Nacht und Tauchtiefe abhängig; `WaterFogEnvironmentMixin` + Composite) |
-| Wasserfarben | Bedrock-Oberflächenfarbe pro Biom (`water/biome_water_colors.json`, aus den `client_biome`-Dateien); der Wasserkörper bleibt wie bei Bedrocks Vibrant Visuals überall „reines Wasser“ – die Biomfarbe färbt nur zu 25 % und mit normierter Helligkeit, damit an Biomgrenzen keine dunklen Flecken entstehen |
-| Biom-gefärbte Lava | Lava nimmt die Farbe ihres Bioms an (Seelensandtal blau, Wirrwald türkis, Karmesinwald tiefrot, Basaltdeltas rotorange, End violett, Tiefes Dunkel cyan, Pilzinsel rosa, Schwefelhöhlen gelb, üppige Höhlen grün); Tabelle `lava/biome_lava_colors.json` (per Resource Pack ersetzbar); Sodium bekommt beim Meshen die Biomfarbe als Vertexfarbe (`DefaultFluidRendererMixin`, Farbe pro Eckpunkt, an Biomgrenzen über `lavaBlendRadius` Blöcke je Seite in RGB gemischt wie Vanillas Biom-Blend, eine reine Überblendung der beiden Biomfarben (der Shader nimmt den Mittelwert unverändert, keine Zwischenfarbtöne); 0 = harte Kante), der Terrain-Shader färbt die Lavatextur nach ihrer Helligkeit um (Kruste in dunklem Ton, heiße Adern Richtung Weiß, weiter leuchtend mit Bloom), das farbige Licht der Lava nimmt dieselbe Farbe (`VVColoredLights`); Idee nach dem Polytone-Pack „Colored Lava“, eigene Umsetzung ohne Polytone; Lava-Partikel (hüpfende Lavatropfen `LavaParticleMixin`, tropfende/fallende Lava `DripParticleMixin` – Abkühl-Helligkeit bleibt, Farbton vom Biom; der Partikel-Shader färbt die Textur nach Helligkeit um statt zu multiplizieren), Lava im Kessel (Tint-Quelle für `lava_cauldron`, dessen Lavafläche schon tintindex 0 hat), Magmablöcke (eigenes Modell mit tintindex 0, Wave-Map G markiert die Magma-Textur, nur die glühenden Risse werden umgefärbt, das Gestein bleibt; auch ihr Licht), Nebel in Lava (`LavaFogEnvironmentMixin`), Feuer an brennenden Entities und Spielern (`FlameFeatureRendererMixin` setzt die Lavafarbe des Bioms als Vertexfarbe – auch für die Flammen der Punchy-Mod an den Armen in der Ego-Perspektive, deren Render-State keine Position hat (dann gilt die Position des Spielers), `entity.fsh` färbt die Feuertextur nach Helligkeit um), Feuer-Overlay in der Ego-Perspektive (`ScreenEffectRendererMixin` setzt die Farbe, `VVFireOverlay` tauscht die Pipeline `fire_screen_effect` gegen eine Kopie mit `shaders/screen/fire.fsh`); Lava-Eimer bleibt orange (seine Textur ist eine einzige Ebene mit dem Eimer); `biomeLava` (an) |
-| Leuchtende Erfahrungskugeln | XP-Orbs leuchten wie in Bedrock: unschattiert, ausgeschnitten statt geblendet und heller und etwas gesättigter, im Haupt-Ziel mit HDR-Emissive-Flag über dem Maximum normaler Lichtquellen (Alpha unter 0,5 = Emissive bis 2, nur helle Texel; `hdr.glsl` zählt den Teil über 1 doppelt), dadurch deutlich stärkeres Leuchten und Bloom-Schein, auch mit Resourcepack-Texturen wie „Liams 3D Experience“; kein dynamisches Licht; erkannt an der Orb-Textur der Zeichnung (`PreparedRenderTypeMixin`, `VVEntityLighting.isXpOrb`, Shader-Define `VV_XP_ORB`); `glowingXpOrbs` (an) |
-| Blitz-Licht | Ein Blitz (`LightningBolt`-Entity, solange er existiert) ist ein dynamisches Licht: kaltweiß, Stärke 28 (größere Reichweite als jede Lichtquelle), 10 Blöcke über dem Einschlag; als stärkstes Licht in der Nähe bekommt er Lichtquellen-Schatten (Blöcke, Scheiben, Laub, Pflanzen, Entities), Schattenstrahlen über 12 Blöcke dürfen 160 statt 64 Schritte gehen; Teil von `dynamicLights` |
-| XP-Orb-Schweife | Fliegende Orbs ziehen einen leuchtenden Schweif (Idee nach der Mod „Perception“, eigene Umsetzung ohne Octolib): jeder Orb merkt sich seine letzten 6 Positionen (`ExperienceOrbMixin`, pro Tick), der Renderer zeichnet daraus ein zur Kamera gedrehtes Band (`VVXpTrails`, `ExperienceOrbRendererMixin`), beginnt 0,15 Blöcke hinter dem Orb (gegen die Flugrichtung) und 0,1 weiter von der Kamera weg, zum Ende schmaler, grün `#66FF00` → gelb `#D9FF00`, ausblendend, additiv über Vanillas Lightning-Render-Type; breiter bei größeren Orbs; ohne Flackern: der Schweif folgt der interpolierten Orb-Position (kein Punkt vor dem Orb, das Ende gleitet mit dem Partial-Tick) und blendet unter ~0,04–0,15 Blöcken/Tick weich aus, liegende Orbs haben keinen; Teil von `glowingXpOrbs` |
-| LabPBR-Packs | Resource Packs im LabPBR-1.3-Format (für Iris-Shader gemachte HD-Packs): `x_n.png` (R/G Normale, B Ambient Occlusion) gibt Blöcken Oberflächenrelief für Sonne, Glanz und dynamisches Licht, `x_s.png` (R Glätte, G F0/Metall ab 230, B Subsurface ab 65, A Leuchten) ersetzt das Bedrock-Material des Texels; die Dateien werden beim Auflisten des Atlas gefunden und aus dem Atlas gelassen, beim Bau der Material-Karte parallel dekodiert (`VVLabPbr`, Normal-Karte `vv_NormalMap` in Atlasgröße); Tangentenraum aus Bildschirm-Ableitungen von Position und UV, also ohne Änderung an Sodiums Vertex-Format; Normal-Karte mit 5 Mip-Stufen (gemittelte Normalen/Höhen, gelesen passend zur Bildschirmgröße eines Texels – keine Pixel-Rauschen in der Ferne), Relief blendet ab ~48–112 Blöcken aus; Parallax aus der Höhenkarte (`_n`-Alpha) auf festen Blöcken bis ~18 Blöcke, nur solange ein Texel mindestens ~1 Pixel groß ist: exakte Texel-für-Texel-Verfolgung (DDA, jeder Texel eine Säule seiner Höhe), Stufen werden saubere senkrechte Wände mit eigener Normale, Versatz bleibt per Zellen-Karte (`vv_SpriteCells`, 16×16-Raster des Atlas) im eigenen Sprite, dazu kleine Eigenschatten zur Sonne (8 Schritte); `labPbrParallaxDepth` (0,25 Block, 0 = aus); Schatten nutzen weiter die Flächennormale; das Relief schattiert auch außerhalb direkter Sonne (Verhältnis Relief-/Flächennormale zur Sonne bzw. zu Licht von oben, 0,55–1,45); Idee nach MaterialMaps von RXokas (MIT), eigene Umsetzung; nur Terrain (noch nicht Items in der Hand); `labPbr` (aus), `labPbrNormalStrength` (1) |
-| Leuchtende Texturen | Resource Packs im OptiFine-/Continuity-Format (`optifine/emissive.properties` mit `suffix.emissive=_e`, dazu `…_e.png` neben der Textur, z. B. GEO für leuchtende Erze): die Pixel der `_e`-Textur werden in der Material-Karte als leuchtend markiert – unschattiert (leuchten in dunklen Höhlen) mit sanftem HDR-Schein; Idee nach Continuity (LGPL-3.0), eigene Umsetzung nach Continuitys Ladeweg: die `_e`-Dateien werden beim Auflisten der Atlas-Quellen auf den Lade-Threads gefunden und gleich zu Masken dekodiert (`VVEmissiveMasks`), der Render-Thread kopiert nur noch Masken (`VVMaterials`); Block-Items in der Hand, gedroppt oder im Rahmen leuchten an denselben Pixeln (Entity-Shader liest die Material-Karte, wenn die Textur der Block-Atlas ist); `emissiveTextures` (an); Texturen aus Resource Packs für nicht installierte Mods und leuchtende Block-Überlagerungen (`block/*_e.png`) kommen gar nicht erst in den Atlas (`DirectoryListerMixin`; ebenso Modelle, Blockstates und Item-Definitionen solcher Namespaces, `FileToIdConverterMixin`/`VVPackFilter` – Namespaces ohne `blockstates/`/`items/` gelten als Hilfs-Namespace des Packs und bleiben; GEO bringt ~9600 Texturen für ~300 Mods, der Block-Atlas wuchs auf 8192×4096 und das Laden dauerte Minuten; Mod-JARs werden nie gefiltert), `skipUnusedPackTextures` (an); Zip-Resource-Packs werden einmal indiziert, damit Minecraft beim Auflisten nicht für jeden Namespace das ganze Zip durchläuft (`FilePackResourcesMixin`, gleiche Ergebnisse, nur schneller – bei GEO ~300 Durchläufe pro Ordner) |
-| Blocklicht | Eigener Lightmap-Shader (`lightmap/lightmap.fsh`, getauscht in Lightmap#render): warmes Licht von Fackeln, Laternen, Lava usw., fällt schneller ab als Vanilla (Lichtinseln wie bei Bedrock), tagsüber im Freien kaum sichtbar; gilt für Terrain, Mobs, Partikel und Hand |
-| Farbiges Licht | Seelenfackeln blau, Redstone-Fackeln rot, Seelaternen cyan, Froschlichter, Amethyst, Lava, Kupferfackeln/-laternen grün usw.: Chunk-Scan im Umkreis von 4 Chunks (`VVColoredLights`), gleichfarbige Lichtquellen werden zu Clustern zusammengefasst (Lavaseen passen ganz hinein; numerische Zellschlüssel, höchstens 4× pro Sekunde neu gebündelt, Routine-Rescans auf 2 Chunks pro Frame verteilt – keine Ruckler an Lavaseen), bis zu 128 Lichter färben im Terrain-Shader den Blocklicht-Anteil; Helligkeit und Verdeckung bleiben Minecrafts Licht |
-| Entity-Beleuchtung | Mobs, Spieler, Item-Entities und Block-Entities (Truhen, Schilder, Banner …) empfangen Sonnen- und Wolkenschatten und schatten sich selbst (Kopf auf Schultern, Arme auf Körper; nahe am Spieler pixelig pro Texturpixel wie Bedrock, weiter weg gefiltert; Schattenseite leicht himmelsgetönt, Sonnenseite in Bedrocks Lichtfarbe wie das Terrain) und farbiges Blocklicht; vanillas Entity-/Item-Pipelines werden beim Zeichnen der Welt gegen eine Kopie mit eigenem Shader getauscht (`entity/entity.*`, `VVEntityLighting`, `PreparedRenderTypeMixin`), GUI-Vorschauen bleiben vanilla; Resourcepack-Konvention „Alpha 254 = leuchtet“ (z. B. Mudai no Punchy) wird beachtet; `entityLighting` (an) |
-| Partikel-Beleuchtung | Rauch, Asche, Sporen, Regenspritzer, Blockkrümel usw. werden wie die Welt beleuchtet: Sonnenlicht (fester Anteil, Partikel sind von allen Seiten sichtbar) mit Schattenkarte und Wolkenschatten, im Schatten leicht himmelsgetönt, farbiges Block- und dynamisches Licht; vanillas Partikel-Pipelines werden beim Zeichnen gegen eine Kopie des Entity-Shaders mit `VV_PARTICLE` getauscht (`QuadParticleFeatureRendererMixin`); leuchtende Partikel (Flammen, Seelenfeuer, Lava, Funken – von Java mit voller Blockhelligkeit gezeichnet) bleiben unschattiert und bekommen im undurchsichtigen Partikel-Durchgang wie Bedrocks Partikel-MERS (Emissive ≈ 0,42) einen Leuchtschein (Bloom); halbtransparente Partikel noch ohne Schein; `particleLighting` (an, braucht `entityLighting`) |
-| Dynamisches Licht | Fackeln, Laternen, Glowstone, Lavaeimer, Lohenruten … in der Hand (Spieler und Mobs) oder als gedropptes Item leuchten, ebenso brennende Entities, Lohen, Magmawürfel, Feuerbälle, Leuchttintenfische; bis zu 16 bewegte Lichter pro Frame im VVLights-Block, Terrain und Entities heben ihr Blocklicht auf (Leuchtkraft − Abstand) und lesen die Lightmap neu, Farbe aus der Tabelle des farbigen Lichts (Seelenfackel blau, Redstone rot …); Fackeln/Lava gehen unter Wasser aus (`VVDynamicLights`, Idee und Leuchtwerte nach LambDynamicLights von LambdAurora, eigene Shader-Umsetzung); auch die Hand in der Ich-Perspektive wird beleuchtet und liegt im Sonnen-/Wolkenschatten; `dynamicLights` (an) |
-| Wehendes Laub | Gras, Farne, Blumen, Getreide, Setzlinge, Beerensträucher, Seegras, Blätter, Ranken und Seerosen bewegen sich im Wind (Vertex-Verschiebung im Terrain- **und** im Schatten-Shader, die Schatten wehen mit); Pflanzen sind unten verankert, Blätter wiegen als Ganzes, Gras, Blumen und Getreide biegen sich zur Seite, wenn Spieler oder Mobs hindurchlaufen, und federn danach mit kurzem Nachschwingen zurück (Feder pro Block auf der CPU, bis zu 128 Blöcke im `VVPlants`-Block, auch im Schatten; Idee nach MC2 Interactive Foliage, MIT), bei Regen mehr Wind; Kennzeichnung pro Atlas-Textur in einer Wave-Map (`include/wave.glsl`, `VVMaterials`); Windfeld und Verankerungs-Trick nach PomPom (MIT); `wavingFoliage` (aus), `wavingStrength` (1.0), `interactiveFoliage` (an) |
-| Wind | Ein gemeinsamer Wind (`VVWind`, Idee nach der Mod „WindLink“ von PlunderPixels, eigene Umsetzung ohne deren Code oder Assets): Richtung dreht sich langsam (zwei langsame Sinus über Minuten), Stärke folgt dem Wetter (klar ~0,8, Regen +0,6, Gewitter +1,0, in ~10 s geglättet, leichtes Atmen) × `windStrength`; Böen = zweistufiges Value-Noise (32er/16er Zellen, Integer-Hash, periodisch über 4096 Blöcke wie `vv_CameraPos`), das mit dem Wind übers Land zieht (3 + 4 × Stärke Blöcke/s); identisch in Java (`VVWind.gust`) und GLSL (`vv_windGust` in `wave.glsl`), Uniforms `vv_Wind` (Richtung, Stärke) und `vv_Extra2.yz` (Böen-Versatz); lokale Stärke = Stärke × (0,6 + 0,9 × Böe), unter Dach/Bäumen nach Himmelslicht schwächer. Windschatten (`VVWindShelter`): 64×64-Höhenkarte um die Kamera (MOTION_BLOCKING: Boden, Wände, Stämme, Laub; ein Byte pro Spalte, modulo 64 abgelegt, 768 Spalten pro Frame aufgefrischt, im `VVPlants`-Block als `vv_Shelter`); Gras und Blumen im Lee von allem, was gegen den Wind höher als ihr Boden ist (~3 Blöcke pro Block Höhe, 4 Blöcke weit geprüft), oder unter einem Dach bewegen sich kaum (bilinear über die 4 nächsten Spalten, damit Pflanzen an Blockkanten nicht reißen); dieselbe Regel dämpft Partikel (`VVWindShelter.exposure`). Wehendes Laub: Ausschlag folgt der lokalen Windstärke, Pflanzen biegen sich zusätzlich mit dem Wind (oben am meisten), Blätter lehnen leicht mit. Schwingende Laternen: Ausschlag und Tempo nach lokalem Wind, Säule lehnt sich bis ~5° pro Stärke mit dem Wind. Blätter (`VVWindParticles`, `windLeaves`): pro Tick 48 Stichproben um den Spieler, Laubblöcke über Luft werfen je nach lokalem Wind ihr eigenes Vanilla-Blattpartikel (`LeavesBlockInvoker`, biomgefärbt, Kirschblüten, Blassblätter …); deren Flug (`FallingLeavesParticleMixin`, Wind `VVWind.localAir`: unter Kronen nur halbiert statt fast weg, ohne Lee-Karte, bei Regen +35 % / Gewitter +50 %, Blätter folgen ihm bei Sturm schneller und sinken langsamer): treiben mit dem Wind, flattern und drehen sich, Böen heben sie, am Boden kommen sie zur Ruhe (Drehung läuft in wenigen Ticks aus, nur starke Böen schieben sie ohne Hüpfen weiter), auf Wasser schwimmen sie (Oberfläche, Wind + Strömung, 15–30 s) und schrumpfen am Ende weg. Sand & Schnee (`VVWindDustParticle`, `windDust`): bei starkem Wind/Böen fliegen kleine Körner aus der Textur von Sand, rotem Sand, Schnee bodennah mit dem Wind und blenden aus. Nur in der Oberwelt. `wind` (an), `windStrength` (100 %), `windLeaves` (an), `windDust` (an) |
-| Aufgewirbeltes Laub | Wer durch Laubstreu (`leaf_litter`) läuft, wirbelt Blätter auf (Idee nach der Mod „Shine“, eigene Umsetzung ohne deren Code oder Assets): `VVLitterKick` prüft pro Tick alle Lebewesen im Umkreis von 32 Blöcken, ob sie sich auf einem Laubstreu-Block bewegen (Gehen ~1 Blatt/Tick, Rennen ~2, Schleichen ¼, Landen ein Schwall nach Fallhöhe); `VVLitterParticle` = Ausschnitt (ein Drittel, die blattreichste von 8 Stellen) der Laubstreu-Textur mit Biomfarbe, flach nach vorn/zur Seite über den Boden gefegt (kaum Höhe, der Aufwärtsschwung verfällt schnell), dann übernimmt der Wind (`VVWind.local`, auch Windschatten), sinkt langsam und flattert, kommt am Boden zur Ruhe (Drehung läuft aus) und blendet aus, schwimmt auf Wasser. Funktioniert auch ohne Wind (dann fallen sie einfach). `leafLitterKick` (an) |
-| Wehende Blütenblätter | Bei Wind lösen sich Blütenblätter von allen Blumen (`#flowers`, ohne Laub): `VVWindParticles.petals` prüft pro Tick 64 Spalten im Umkreis von 16 Blöcken (oberster Block per `WORLD_SURFACE`-Höhenkarte), Chance (lokaler Wind − 0,45) × 6 % (inkl. Windschatten); außerdem verlieren Blumen Blütenblätter, wenn Spieler oder Mobs hindurchlaufen (`VVLitterKick`, etwa ein Drittel der Laubstreu-Menge, beim Landen ein paar mehr, vom Blütenkopf aus); `VVLitterParticle` im Blüten-Modus: ein Fünftel der Blumentextur, die Stelle mit den meisten nicht-grünen Texeln (Blüte statt Stiel, Pixel über `SpriteContentsAccessor`), kleiner und leichter als Laub, folgt dem Wind schneller, sinkt langsamer, kommt am Boden zur Ruhe, schwimmt auf Wasser. `windPetals` (an) |
-| Windstreifen | Ab und zu zieht ein feiner, heller Streifen mit dem Wind durch die offene Luft (`VVWindStreaks`): Kopf bewegt sich mit Wind × Böe, schwingt quer dazu, ~8 % machen in der Lebensmitte eine kleine Schleife; Band durch die letzten 14 Positionen, vorn dünn, zum Ende spitz und ausblendend, ganzer Streifen blendet ein/aus (max. Alpha 0,22), additiv (Lightning-Pipeline, aber eigener Render-Type `VVRenderTypes.additiveGlow` ins Haupt-Ziel statt ins Wetter-Ziel – sonst schwarz bei Regen; auch für die XP-Schweife) aus `LevelRendererMixin` (submitFeatures); Spawn je Tick (Stärke − 0,4) × 12 %, 5–25 Blöcke um die Kamera, gegen den Wind versetzt, 1–6 Blöcke über Grund, nur unter freiem Himmel; max. 24. `windStreaks` (an) |
-| Partikel im Wind | Nach jedem Partikel-Tick (`ParticleGroupMixin`, `VVParticleWind`): Rauch (Fackeln, Feuer, Öfen, Asche, Lagerfeuer stärker) nimmt die Windgeschwindigkeit an, Flammen (auch Seelenfeuer) neigen sich leicht, Lava-Funken werden mitgeweht; lokaler Wind = Stärke × Böe × Himmelslicht² (drinnen nichts). `windParticles` (an) |
-| Wellen & Schaum an der Küste | Brandung an Seen und am Meer (`terrain.fsh`, `vv_shadeWater`, Wasseroberfläche von oben): `VVShoreMap` berechnet für 64×64 Spalten um die Kamera den Abstand jeder Wasserspalte zum nächsten Land (Chamfer-Distanztransformation, alle 12 Frames, ein Byte pro Spalte in 1/16 Blöcken, modulo 64, im `VVPlants`-Block als `vv_Shore`; gemeinsamer Block jetzt in `plants_block.glsl`); im Shader bilinear → Abstand zur Uferlinie; Wellenkämme laufen darauf zum Ufer (Wellenlänge 6 Blöcke, alle ~9 s eine neue Welle, bei Sturm ~5 s, leicht schräg/wellig; eigene Wellenuhr `VVWind.shoreClock`, Frame für Frame aufsummiert mit Tempo nach Windstärke (nur Stärke, nie Richtung), als `vv_Wind.w` an den Shader – vorher Zeit × Tempo, das lief rückwärts, sobald die Windstärke sank), Profil mit langem Rücken und steiler Front, nur als Schaum-Bläschen über das Wasser gezeichnet (die Wasseroberfläche selbst bleibt unverändert), nur auf offenem Wasser (5 Blöcke seewärts muss noch ≥1,5–5 Blöcke Wasser sein – Teiche und schmale Flüsse bleiben ruhig), Stärke mit dem Wind. Schaum (sparsam): dünne Bläschenlinie auf dem Kamm (unter ~4 Blöcken), kurze lichte Spur dahinter (unter ~3 Blöcken), kurzer Auflauf am Ufer, dazu ein schmaler Saum per Wassertiefe (auch an Teichen); pixelgroße Bläschen (1/16 Block, Hash, ~3×/s neu), Licht aus Lightmap + Sonne; ab 40–64 Blöcken aus, Wellen bis 28 Blöcke um die Kamera. `shoreFoam` (an), Uniform `vv_Extra2.w`  Gischt (`VVShoreWaves`, `VVSprayParticle`): pro Tick 360 Stichproben bis 24 Blöcke um die Kamera, wo innerhalb von ~3 Blöcken vor dem Ufer gerade ein Kamm (gleiche Phase wie im Shader) durchläuft, fliegt Wasser hoch und zum Land (oben wasserblau, zur Wasseroberfläche hin weiß), direkt am Ufer bricht die Welle mit höherer Gischt und Spritzern (`SPLASH`); Tropfen verschwinden, wenn sie ins Wasser zurückfallen. |
-| Brandungsgeräusch | An die Wellen gebunden (`VVShoreSound.waveBreak`): wo eine Welle am Ufer bricht (`VVShoreWaves`, gleiche Stelle wie die Gischt), spielt der Sound einmal von dort (positionell, ~16 Blöcke hörbar, Tonhöhe leicht zufällig, lauter bei Wind); dieselbe Welle entlang derselben Küste nur einmal (innerhalb ~10 Blöcken höchstens alle 1,5 s). Sound `sounds/ambient/shore_waves.ogg` (`sounds.json`, Untertitel): „waves medium strength“ von skjor1 (freesound.org, Datei 321737), Mono, kurz ein-/ausgeblendet – vor einer Veröffentlichung die Lizenz der freesound-Datei prüfen. `shoreSound` (an), `shoreSoundVolume` (80 %), braucht `shoreFoam` |
-| Kielwasser | Boote (und Schwimmer an der Oberfläche) ziehen Schaum hinter sich her (Idee nach der Mod „Wakes“ von Goby56, GPL-3; eigene Umsetzung ohne deren Code oder Assets): `VVWakes` legt pro Tick bei Bewegung alle ~0,75 Blöcke (Schwimmer 0,9) einen Punkt auf die Wasseroberfläche (max. 2,2 s alt, die neuesten/nächsten 48 als `vv_Wake` im `VVPlants`-Block); im Wasser-Shader breitet sich von jedem Punkt ein schmaler Schaumring aus (Radius 0,3 + 0,9 × Alter, verblasst schnell), die Ringe entlang des Wegs ergeben das V, direkt dahinter aufgewühltes Wasser; gleiche Bläschen wie der Küstenschaum. Schnelle Boote (> 0,18 Blöcke/Tick) werfen am Bug Gischt zu beiden Seiten (`VVSprayParticle`, braucht `shoreFoam`). `wakes` (an) |
-| Flüssige Sonne & God-Rays | Minecraft rechnet den Sonnen-/Mondwinkel nur pro Tick (20×/s) neu: `VVFrameUniforms.smoothAngle` folgt ihm pro Frame weich (~60 ms Nachlauf, große Sprünge wie `/time set` sofort) – Himmel, Sonne, Atmosphäre und Licht gleiten. Die Schattenrichtung bleibt absichtlich in kleinen Schritten (`shadowAngleStep`, gegen kriechende Schattenkanten); God-Rays, Lichtstreuung in der Luft, Unterwasser-Lichtstrahlen und Wolkenbeleuchtung nehmen stattdessen die weiche Richtung (`VV_SMOOTH_LIGHT_DIR` = `vv_SunDir`/`vv_MoonDir`) |
-| Schwingende Laternen & Ketten | Hängende Laternen (alle Sorten) und frei hängende Ketten schwingen langsam im Wind, bei Regen/Gewitter schneller und weiter, unter Dach schwächer, lange Ketten mit kleinerem Ausschlag; die Säule biegt sich wie eine Kette (jedes Blockgelenk dreht um einen Anteil des Ausschlags, oben wenig, unten viel – wie Fancy World Animations); das (farbige) Licht der Laterne schwingt mit: Lichtfarbe/Glow folgen dem Laternenkörper und das Blocklicht ringsum verschiebt sich zur Seite, auf die die Laterne schwingt – im Terrain- **und** Schatten-Shader, die Blöcke bleiben im Chunk-Mesh (`VVHanging` sucht die Säulen in 2 Chunks um die Kamera, bis zu 64 im `VVPlants`-Block; Pendelkurve nach Fancy World Animations, MIT); auch mit Resource Packs, die Laternen/Ketten ändern: markiert werden alle Texturen, die die Laternen- und Ketten-Modelle tatsächlich benutzen (z. B. Leucht-Hüllen), überstehende Kettenglieder schwingen mit, durchscheinende Teile werden über ihre Position erkannt; `swingingLanterns` (aus, braucht `wavingFoliage`) |
-| Regen & Gewitter | Regen dimmt Sonne und Schatten, Gewitter noch stärker und macht den Himmel dunkel; Regennebel wie Bedrock (`fogs/default_fog_setting.json`: linear von 23 % bis 70 % der Sichtweite, grau, auch über dem Himmel am Horizont); Regen- und Schneetextur aus den Streifen und Flocken von Bedrocks `weather.png` (weich auslaufende Streifen, kleine Kreuz-Flocken; `WeatherEffectRendererMixin`); wo es beim Spieler regnet (nicht in Wüste/Savanne, Schnee macht nicht nass) werden Oberflächen unter freiem Himmel langsam nass (dunkler, glänzend, oben mehr als seitlich); trocknet nach dem Regen in ~1 Minute; optional Pfützen auf flachem Boden, die den Himmel spiegeln (`rainPuddles`, standardmäßig aus – Bedrock hat keine); Blitze lassen Himmel und Nebel in der Ferne kurz bläulich-weiß aufleuchten (Nahes kaum); Regen wird nach dem Composite gezeichnet, damit der Dunst die Tropfen vor den Wolken nicht übermalt (`VVWeather`); `weatherEffects` (an) |
-| Nether-Partikel | Rote Schwebeteilchen in den Nether Wastes wie bei Bedrock (Java hat dort keine; Crimson-Sporen, etwas spärlicher als im Karmesinwald; `ClientLevelMixin`); im Warped Forest doppelt so viele blaue Sporen und in kräftigem Blau statt Javas fast unsichtbarem Dunkelblau (`WarpedSporeProviderMixin`); `netherParticles` (an) |
-| The End | Wie Bedrock (`atmospherics/end_atmospherics.json`, `fogs/the_end_fog_setting.json`, `lighting/end_lighting.json`): dunkelvioletter Himmel (Zenit 22/17/36 bis fast schwarzer Horizont) statt der Sternen-Box, dünner violetter Dunst über fernen Inseln; der End-Flash leuchtet als weiche violette Scheibe mit Halo am Himmel (statt Javas Sprite), streut im Dunst (Henyey-Greenstein g = 0,8) und beleuchtet die Inseln aus seiner Richtung violett (228/93/255); `bedrockEnd` (an) |
-| Biom-Varianten | Pro Biom Bedrocks eigene Atmosphäre (Himmelsfarben, Sonnenglühen), Beleuchtung (Sonnen-/Mondfarbe), Farbgebung (Kontrast, Sättigung, Farbtemperatur: Wüste warm, Schnee kühl) und Nebel (volumetrische Dichte: Blassgarten, Sumpf, Dschungel dichter, Wüste klar); `bedrock/biomes.json` + `bedrock/{atmospherics,lighting,color_grading,fogs}/`, Übergänge werden über einige Sekunden überblendet (`VVBiomeEnvironment`) |
-| Wolken | Vanilla-Form, eigene Shader (`clouds/clouds.*`, `include/clouds.glsl`): Sonnen-/Mondlicht in Bedrocks Lichtfarbe (pfirsich bei Sonnenauf-/-untergang), Seiten und Oberseiten hell (weißer Rand von unten), Unterseiten im eigenen Schatten etwas dunkler – zum Wolkenrand hin heller (bis ~1,5 Zellen nach innen, Abstand zur nächsten leeren Zelle der Wolkenkarte), zur Mitte schattiger und leicht himmelsdurchscheinend wie Bedrock, heller Saum gegen die Sonne, deckend (Sonne scheint nicht mehr durch), verblassen in der Ferne in den Himmel; werfen eckige Schatten (12×12-Zellen wie die Wolken selbst, harte Kanten) senkrecht auf den Boden darunter (gleiche Wolkenkarte und Drift wie die gezeichneten Wolken, `VVCloudShadows`) |
-| Volumetrischer Nebel | Sonnenlicht, das in der Luft streut (Bedrock `fogs/*.json` → `volumetric`: Dichte, Streuung, Henyey-Greenstein-g; `bedrock/fogs/volumetric.json`): Ray-March gegen die Schattenkarte im Composite, dadurch warmer Schein Richtung Sonne und Lichtstrahlen hinter Bäumen und an Höhleneingängen |
-| Godrays | Sonnenstrahlen im Bildraum (Idee nach dem Polytone-Pack „Sunbathing“): im Composite wird von jedem Pixel zur Sonnenposition auf dem Bildschirm gelaufen und gesammelt, wo um die Sonne Himmel sichtbar ist (Tiefe = Himmel × sonnenförmiger Schein); Bäume, Berge und Wolken (schreiben Tiefe) lassen Lücken, so fächern helle Strahlen und dunkle Schattenstreifen auf; Farbe vom Sonnenlicht (abends orange), nachts schwächer vom Mond, aus bei Regen, unter Wasser und ohne Himmel; `godRays` (1, 0 = aus) |
-| Schatten von Lichtquellen | Fackeln, Laternen, Glowstone usw. werfen Schatten (Idee nach der Mod „Vibrancy“; die macht echtes Raytracing mit OpenGL 4.3/SSBOs, das unsere GL-3.3-Shader nicht haben – daher eigene Umsetzung): `VVLightShadows` baut fortlaufend (4 Spalten pro Frame) ein Voxel-Gitter 96×64×96 um die Kamera, ein Byte pro Block = 2×2×2 Halbblock-Zellen aus der Kollisionsform (Stufen, Platten, Zäune werfen passende Schatten; Lichtquellen selbst sind ausgenommen); Gitter und Scheiben (`IronBarsBlock`: Eisen-/Kupfergitter, Glasscheiben) sind flache Ebenen mit Löchern nur in der Textur – für sie speichert das Gitter die Arme (N/S/W/O) und die Textur, der Shader schneidet den Strahl mit der Scheibenebene und prüft dort die echte Atlas-Textur (nur Texel mit Alpha > 0,9 werfen Schatten → Streifenschatten bei Gittern); genauso Pflanzen (`VegetationBlock` außer Feldfrüchten, Zuckerrohr: zwei diagonale Ebenen, Doppelpflanzen mit `_top`/`_bottom`-Textur) und Glas/Laub (Würfel mit Löchern: Textur an Ein- und Austrittsfläche – Rahmenschatten bei Glas, gesprenkelte Schatten unter Bäumen); Laub und Pflanzen als Empfänger (Wave-Map-Klasse oder eigener Block im Gitter ist Laub/Pflanze, wichtig für Bushy-Leaves-Packs) werden nicht von anderem Laub/Pflanzen verschattet und nur zu 50 % statt 80 % abgedunkelt (Licht scheint durch Blätter); Pflanzen lassen bei einem Treffer 50 % durch (auch bei bewegten Lichtern; nur Pflanzen mit Blockform-Höhe ≥ 0,35 – flache Bodendecker wie Laubstreu, Blütenteppiche, Wildblumen werfen keine Schatten), Laub 35 % (Gitter, feste Blöcke und Entities blockieren voll); bei bewegten Lichtern (Fackel in der Hand, fallengelassene Lichtquellen, brennende Mobs) wird die Box des Trägers übersprungen; gehaltene Lichter sitzen in der Körpermitte, beim eigenen Spieler in der Ego-Perspektive einen Block vor ihm (waagerecht in Blickrichtung, Brusthöhe; `VVDynamicLights#heldOut`) – wie in Third-Person, wo die Kamera hinter dem Licht steht, fallen die Schatten so sichtbar von ihm weg; steht etwas im Weg (Gitter, Wand), bleibt das Licht 0,25 davor auf der Spielerseite; der eigene Spieler wirft nur in der Ego-Perspektive keinen Lichtquellen-Schatten (in Third-Person schon, andere Spieler und Mobs immer); in Third-Person wird nachts der pixelige Mond-Schatten des eigenen Spielers ausgelassen, solange er im Blocklicht steht oder eine Lichtquelle hält (`VVEntityShadows#hiddenPlayerSkin`, erkannt an der Skin-Textur) – dann zeigt sich nur sein Lichtquellen-Schatten; Flächen, die vom Licht wegzeigen, bekommen keinen Schattenstrahl (sie haben kein direktes Licht – der Schatten gab dort harte Keile an Flächen im flachen Blickwinkel); die eigene Box wirft in der Ego-Perspektive keinen Schatten; der eigene Block einer Fläche verschattet sie nicht über seine Textur (sonst kreuzten steile Strahlen von Gitterstäben die eigene Scheibenebene); Blockänderungen gehen sofort ins Gitter (`ClientLevelMixin#sendBlockUpdated`); lebende Entities in 32 Blöcken (bis 16, nächste zuerst) werfen Schatten als etwas schlankere Boxen (VVLights-Plätze 112–127, `vv_LightsInfo.w` = Anzahl; Boxen um das Licht selbst oder um die Fläche werden übersprungen); Entities und Partikel empfangen die Schatten auch (`entity.fsh`, nur Blockformen und Boxen, die 2 stärksten Lichter, nicht die Hand); RGBA8-Textur 768×770 (ein Texel pro Block: R Halbblock-Zellen, G Scheiben-Arme / Bit 4 Pflanze / Bit 5 Texturwürfel, B Textur-Index; 8×8 Kacheln; Zeilen 768/769 = Atlas-Rechtecke der Scheiben-Texturen); der Terrain-Shader (solid/cutout) schickt von jeder Fläche einen 3D-DDA-Strahl durch die Halbblock-Zellen zu den 3 stärksten farbigen Lichtern in der Nähe (`VVColoredLights`) und dunkelt deren Anteil am Blocklicht ab, wenn etwas im Weg ist (voll verschattet bleiben 20 %); Minecrafts Licht bestimmt weiter die Reichweite (Wände, Höhlen); `dynamicShadows` (aus) und `lightShadows` als Stärke (100 %), braucht farbiges Blocklicht; Debug-Ansicht 15 zeigt die Sichtbarkeit (weiß beleuchtet, rot verschattet, dunkelblau kein Strahl, schwarz Gitter fehlt/aus) |
-| Composite | Luftperspektive in Himmelsfarbe, Bedrock-Color-Grading |
-| HDR | Bloom (Dual-Filter-Kette bis 1/64), automatische Belichtung (sanft, mit Anpassungszeit), Bedrocks „generic“-Tonemapper; Hauptbild bleibt RGBA8, HDR wird im Composite rekonstruiert (leuchtende Blöcke über Alpha-Markierung und unschattiert wie bei Bedrock, Sonnentextur verstärkt) |
-| Materialien (PBR) | Bedrock-MERS pro Texturpixel für 1046 Java-Blocktexturen (per Bildvergleich den Bedrock-Texture-Sets zugeordnet, `bedrock/materials.png/.json`): Metall spiegelt den Himmel in eigener Farbe, glatte Stellen bekommen Sonnenglanz (GGX) und Sonnenfunkeln pro Texturpixel wie auf Wasser, Blätter leuchten im Gegenlicht pixelweise gelbgrün auf, Glas (auch Eis, Schleim, Honig) bekommt Sonnenfunkeln und Himmelsspiegelung, Leuchtblöcke leuchten (unschattiert, eigener Bloom nur um den Block) |
-| Daten | `lighting/global.json`, `atmospherics/atmospherics.json`, `color_grading/color_grading.json`, `water/water.json` aus dem offiziellen Bedrock-Sample-Pack |
-
-## Aufbau
-
-```
-render/VVState              aktiv? (OpenGL-Backend, Config an, kein Iris)
-render/VVFrameUniforms      Uniform-Block "VVFrame" pro Frame (832 Byte): Matrizen, Schattenmatrix, Sonne/Mond,
-                            Bedrock-Licht- und Himmelswerte, Config
-render/env/VVKeyframes      Bedrock-Keyframes (Zeit 0 = Mittag, .25 Sonnenuntergang, .5 Mitternacht, .75 Sonnenaufgang)
-render/env/VVEnvironment    liest die Bedrock-JSONs (bei Start und F3+T)
-render/VVShadows            Schattenkarte direkt aus Sodiums Regionen (eigene Batches, eigenes Culling)
-render/VVEntityShadows      Entities in die Schattenkarte: zeichnet die schon vorbereiteten Entity-Meshes des Frames
-                            (FeatureRenderDispatcher/StagedVertexBuffer) ein zweites Mal, Depth-only, Pipeline pro Vertex-Format
-render/VVSky                Vollbild-Himmel statt SkyRenderer#renderSkyDisc
-render/VVTerrain            baut Sodiums Terrain-Pipeline auf unsere Shader um
-render/VVComposite          Vollbild-Pass im Level-Framegraph + HDR-Kette (Bloom, Belichtung) in eigenen RGBA16F-Texturen
-render/VVWater              Kopie der opaken Szene vor Sodiums Translucent-Pass, Wasser-Sprites für die Erkennung
-render/env/VVBiomeEnvironment  Bedrock-Umgebung pro Biom laden, Biome um die Kamera abtasten und überblenden
-render/env/VVWaterColors    Bedrock-Wasserfarben pro Biom (Cache pro Biome-Instanz, thread-sicher)
-render/VVColoredLights      Lichtquellen-Scan (findBlockLightSources), Uniform-Block "VVLights" für den Terrain-Shader
-render/VVLightmap           eigene Lightmap-Pipeline (warmes Blocklicht)
-render/VVClouds             eigene Wolken-Pipelines (auf Vanillas CLOUDS_SNIPPET), getauscht in CloudRenderer#render
-render/VVMaterials          Materialkarte (RGBA8 = Metall/Leuchten/Rauheit/Durchleuchtung, Layout des Block-Atlas), neu gebaut wenn sich der Atlas ändert
-
-mixin/minecraft/LevelRendererMixin   vor addMainPass: VVFrame schreiben + Schattenkarte rendern; vor addAlwaysOnTopPass: Composite
-mixin/minecraft/SkyRendererMixin     Himmelsscheibe ersetzen, Sonnenaufgangs-Fächer/Sonne/Mond aus (Sterne bleiben)
-mixin/minecraft/FogRendererMixin     Luft-Nebelfarbe = Horizontfarbe
-mixin/minecraft/ShaderManagerMixin   bei F3+T: Config + Bedrock-JSONs neu laden
-mixin/minecraft/BiomeMixin           Biome#getWaterColor -> Bedrock-Farbe
-mixin/sodium/*                       Terrain-Shader tauschen, VVFrame + Schattenkarte binden, Szene vor Translucent kopieren, Zugriff auf Regionen
-
-assets/naturalvisuals/
-  bedrock/...                       Bedrock-Einstellungen (per Resourcepack überschreibbar, wie auf Bedrock)
-  textures/environment/             sun_vv.png, moon_phases.png (Bedrock)
-  textures/water/                   Bedrock-VV-Wasser: still_/flow_ color, normal, mers (aus water_still_grey/water_flow_grey)
-  shaders/include/frame.glsl        GLSL-Gegenstück zu VVFrameUniforms (Layout synchron halten!)
-  shaders/include/atmosphere.glsl   Himmelsmodell (Gradient + Glow)
-  shaders/terrain/terrain.*         Terrain
-  shaders/terrain/shadow.*          Schattenkarte
-  shaders/include/shadow.glsl       Schatten-Verzerrung (gleich im Schattenpass und bei der Abfrage)
-  shaders/include/water.glsl        Wasser-Erkennung, Wellen, Caustics, Projektion (Wasser-Shading selbst in terrain.fsh)
-  shaders/sky/sky.fsh               Himmel inkl. Sonne/Mond
-  shaders/post/composite.fsh        Luftperspektive, Belichtung, Bloom, Grading, Tonemapping
-  shaders/post/bloom_*.fsh          Bloom: Prefilter (HDR-Rekonstruktion, Schwelle), Down-/Upsample
-  shaders/post/exposure.fsh         automatische Belichtung (1x1, Ping-Pong mit dem letzten Frame)
-  shaders/include/material.glsl     Material-Shading (Sonnenglanz, Himmelsspiegelung, Metall, Blatt-Durchleuchtung)
-  shaders/include/hdr.glsl          HDR-Rekonstruktion, Emissive-Markierung, Sonne, generic-Tonemapper
+```bash
+./gradlew build        # -> build/libs/naturalvisuals-0.32.70.jar
+./gradlew runClient    # Development client with Sodium
 ```
 
-### Frame-Ablauf (LevelRenderer#render, 26.2)
+Place the following in your `mods` folder: the Natural Visuals JAR, Sodium 0.9.2 for Minecraft 26.2, and Fabric API.
 
-Framegraph bauen: clear → sky → *prepareChunkRenders (Sodium)* → **[VV: Uniforms + Schattenkarte sofort rendern]**
-→ main → Outline → Wolken → Wetter → Transparency → **[VV: Composite]** → Always-on-top → ausführen.
+**Iris must not be installed.** Set the graphics backend to **OpenGL** in the video settings.
 
-Im Main-Pass zeichnet Minecraft: opakes Terrain → Entities → **[VV: Farbe + Tiefe kopieren]** → Translucent-Terrain (Wasser).
-Wasser liest die Kopie (Brechung, Tiefe, SSR) und schreibt eine fertige, deckende Farbe.
+In `logs/latest.log`, the following message should appear:
 
-Wichtig: Minecraft 26.x rendert mit **Reversed-Z** (Tiefe wird auf 0 gelöscht, nah = größer).
-Die Schattenkarte selbst nutzt die normale Konvention (1 = fern).
+`[naturalvisuals] Active on OpenGL ...`
 
-## Testen / Debug-Ansichten
+If a warning appears (Iris or Vulkan) or a shader error occurs, the mod—or the affected feature—will remain disabled.
 
-**Im Spiel:** Optionen → Grafikeinstellungen (Sodium-Menü) → Eintrag „Natural Visuals“ mit den Seiten Bild & HDR, Licht & Schatten, Himmel/Wetter/Welten, Wasser, Pflanzen & Materialien (Sodium-Config-API, `VVSodiumOptions`; Texte in `lang/de_de.json` / `en_us.json`). Fast alles wirkt sofort; Schattenauflösung und Bedrock-Wasserfarben laden die Ressourcen neu. Gespeichert wird beim Übernehmen.
+## Current Features
 
-Alternativ `config/naturalvisuals.json` ändern, dann **F3+T**. Config, Bedrock-JSONs und Shader werden neu geladen.
-Nur `enabled` und `terrainShader` brauchen einen Neustart.
+- **Terrain shading and shadows:** Custom terrain shaders, sunlight and moonlight, pixelated shadows, and shadows cast by terrain and entities.
+- **Sky and atmosphere:** Bedrock-inspired sky colors, sun and moon glow, atmospheric fog, and smooth lighting transitions.
+- **Water rendering:** Reflections, refraction, depth-based coloring, caustics, underwater light rays, and animated waves.
+- **Colored lighting:** Different light colors for torches, soul torches, redstone torches, lava, and other light sources.
+- **Dynamic lighting:** Held and dropped light sources illuminate their surroundings, including light emitted by burning entities.
+- **Enhanced materials:** LabPBR resource pack support, emissive textures, metallic reflections, surface highlights, and improved leaf translucency.
+- **Environmental effects:** Wind-driven foliage, falling leaves, drifting petals, blowing dust, swaying lanterns and chains, rain, wet surfaces, and optional rain puddles.
+- **Water interactions:** Shoreline foam, breaking waves, water spray, boat wakes, and splashes.
+- **Lighting effects:** Volumetric fog, god rays, bloom, automatic exposure, and HDR-inspired tone mapping.
+- **Biome-specific visuals:** Bedrock-inspired atmospheric colors, fog, lighting, and colored lava.
+- **Nether and End enhancements:** Custom particles, atmospheric fog, and improved sky effects.
 
-| `debugView` | Ansicht | Erwartung |
-|---|---|---|
-| 0 | normal | |
-| 1 | Normalen (Terrain) | Oberseiten hellgrün, Seiten rot/türkis/blau/oliv |
-| 2 | lineare Tiefe | nah dunkel, fern hell, Himmel weiß |
-| 3 | Weltposition | 4-Block-Farbstreifen auf dem **ganzen Gelände**, die beim Laufen/Drehen fest an der Welt kleben; Himmel schwarz |
-| 4 | N·L | zur Sonne zeigende Flächen hell |
-| 5 | Schatten auf Terrain | beleuchtet = hellgelb, Schatten = dunkelviolett; Bäume werfen klare Schatten |
-| 6 | rohe Schattenkarte | unten links: Graustufen-Bänder (ein Band ≈ 12 Blöcke Höhe), Bäume und Hügel als Konturen; rot = nichts gezeichnet |
-| 7 | Wasser | Wasser blau, je tiefer desto mehr Grün (türkis), rot/rosa = Bildschirm-Spiegelung trifft (unter Ufern, Bäumen); Glas/Eis schwarz |
+## Configuration
 
-Wichtige Werte: `shadows`, `shadowPixelated` (an), `entityShadows` (an), `vanillaEntityShadows` (aus), `entityLighting` (an), `shadowResolution` (2048), `shadowDistance` (128), `shadowDistortion` (0.8), `shadowAngleStep` (0.25°), `shadowSoftness` (1.5), `sunlightStrength`, `shadowDarkness`,
-`moonlightStrength`, `sky`, `sunSize`, `nightSkyBrightness`, `hazeStrength`, `exposure`, `saturation`/`contrast`
-(Multiplikatoren auf das Bedrock-Grading).
+Open the Sodium video settings menu and select **Natural Visuals** to customize visual effects, lighting, shadows, water, weather, foliage, and materials.
 
-Blocklicht: `coloredBlockLight` (an), `blockLightTint` (an, farbige Lichtquellen), `blockLightColor` ([1.0, 0.80, 0.60]), `blockLightStrength` (1.0).
+Alternatively, edit `config/naturalvisuals.json` and press **F3 + T** to reload the configuration, Bedrock settings, and shaders.
 
-Biome: `biomeEnvironments` (an), `biomeTemperature` (1.5), `biomeFog` (1).
+## Known Limitations
 
-Wolken: `bedrockClouds` (an), `cloudShadows` (1, 0 = aus).
+- Iris and Vulkan rendering backends are not supported.
+- Some entity and particle shadow features remain incomplete.
+- Certain effects have rendering limitations involving HDR, reflections, and first-person rendering.
+- Some Bedrock visual effects are approximations rather than exact reproductions.
 
-Volumetrischer Nebel: `volumetricFog` (1, 0 = aus; braucht Schatten). Godrays: `godRays` (1, 0 = aus). Lava-Biomübergang: `lavaBlendRadius` (3 Blöcke, 0–7, 0 = harte Kante).
+## License
 
-Materialien: `materialSpecular` (1, 0 = aus), `leafTranslucency` (1), `leafDensity` (60 %: Anteil der Löcher in Laub-Texturen, der mit dunklerem Innen-Laub gefüllt wird, pro Texel fest per Hash; aus der Ferne wird stattdessen die Mip-Deckung angehoben; Laubblöcke sind in der Wave-Map mit B = 255 markiert, Ranken und Seerosen nicht).
+- Original code: LGPL-3.0.
+- Sodium is used as a dependency.
+- Bedrock sample pack assets and textures originate from Mojang's official Bedrock sample resource pack; its licensing terms must be reviewed before distribution.
 
-HDR: `hdr` (an), `bloom` (1), `emissiveStrength` (1.5), `autoExposure` (an), `exposureMin`/`exposureMax` (0.8/1.25), `exposureKey` (0.3).
+## Credits
 
-Wasser: `water`, `waterWaves` (0.35 = Stärke der Bedrock-Normal-Map; 0 = spiegelglatt), `waterReflections`, `waterRefraction`, `waterCaustics`,
-`waterCausticsAbove` (0.5, Caustics am Grund von oben gesehen), `waterClarity` (höher = klarer), `waterReflectionStrength` (0.35, 0 = nur Sonnenglanz), `waterGlint` (1),
-`waterLightRays` (1, Lichtstrahlen beim Tauchen),
-`bedrockWaterColors`.
-
-## Bekannte Grenzen
-
-* Entities werfen Schatten, empfangen aber noch keine (sie nutzen die Vanilla-Shader). Partikel werfen keine.
-* Ego-Perspektive: Der eigene Spieler wird über einen privaten FeatureRenderDispatcher nur in die Schattenkarte gezeichnet (render/VVFirstPersonShadow).
-* Vanillas runde Schattenkreise unter Entities sind aus, solange `entityShadows` an ist (`vanillaEntityShadows: true` holt sie zurück).
-* Normalen kommen aus `dFdx/dFdy`, also flach pro Fläche. Echte Normalen/PBR brauchen ein erweitertes Sodium-Vertex-Format.
-* Das Hauptbild bleibt RGBA8 (Screenshots und andere Mods lesen es byteweise). HDR wird im Composite rekonstruiert: Was im 8-Bit-Bild schon weiß war, kann nicht mehr Zeichnung bekommen.
-* Leuchtende Blöcke erkennt der Terrain-Shader vorerst heuristisch (helle, gesättigte Textur + volles Blocklicht). Mit PBR kommen die Bedrock-MERS-Maps.
-* Hand und GUI werden nach dem Composite gezeichnet und bekommen kein Tonemapping.
-* Das Himmelsmodell ist eine Näherung. Farben und Stärken sind die offiziellen Keyframes, die Formel dahinter ist nicht öffentlich.
-* Wolken behalten die Vanilla-Farbe (Bedrock färbt sie bei Sonnenaufgang pfirsichfarben).
-* Nur die globalen Bedrock-Einstellungen, noch keine Biom-Varianten (`lighting/desert_lighting.json` usw.). Ausnahme: Wasserfarbe.
-* Bildschirm-Spiegelungen können nur zeigen, was im Bild ist. Was außerhalb liegt, wird durch den Himmel ersetzt (wie bei Bedrock und allen Shaderpacks).
-* Wasser ist jetzt deckend (die Szene dahinter steckt schon in seiner Farbe). Partikel unter der Wasseroberfläche sind von oben deshalb nicht mehr sichtbar.
-* Beim Tauchen bekommen Caustics alles unterhalb der Oberfläche des Wassers, in dem man ist. Andere Gewässer in Sichtweite mit anderer Höhe werden dabei nicht unterschieden.
-
-## Lizenzen
-
-* Eigener Code: LGPL-3.0.
-* Sodium (PolyForm Shield): nur Abhängigkeit/Mixins. Shader-Includes werden per `#moj_import` referenziert, nicht kopiert.
-* Complementary Reimagined: nur optische Referenz, kein Code übernommen.
-* `assets/naturalvisuals/bedrock/*` und `textures/environment/*` stammen aus Mojangs offiziellem Bedrock-Sample-Resource-Pack.
-  Vor einer Veröffentlichung die Lizenzbedingungen des Sample-Packs prüfen.
-
-## Danksagung
-
-Die Idee für das farbige Licht (lichtemittierende Blöcke um die Kamera sammeln und die nächsten an die GPU geben) stammt aus LumaLight von fdderng (MIT-Lizenz). Umsetzung und Farbanwendung (nur der Farbton, Helligkeit und Verdeckung von Minecraft) sind eigene.
-
-Die Idee für das dynamische Licht (gehaltene/gedroppte Lichtquellen leuchten) und die Leuchtwerte von Items/Entities ohne eigenen Block (Lohenrute 10, Leuchtbeeren 14 …) stammen aus LambDynamicLights von LambdAurora. Code wurde nicht übernommen; unsere Umsetzung arbeitet komplett im Shader (keine Chunk-Neubauten).
-
-Wehendes Laub: Windfeld (domain-warped Sinuswellen), Verankerung über den Sprite-Rand und die Schlüsselwortliste der Pflanzen-Texturen sind aus PomPom (`extras_wave.glsl`, `PompomExtras`, MIT-Lizenz) übernommen und angepasst.
-
-Schwingende Laternen und Ketten: die Pendelkurve (drei Sinus mit unterschiedlicher Geschwindigkeit, Regen beschleunigt, kleinerer Ausschlag bei langen Ketten) stammt aus Fancy World Animations von Madu59 (MIT-Lizenz). Die Darstellung ist eigen: FWA rendert die Blöcke jedes Frame als Modelle neu, wir drehen die Vertices im Terrain-Shader.
-
-End-Himmel ("Better End Sky", Option an): Nebel- und Sternen-Renderer samt Texturen (`textures/sky/end/`) aus Better End Sky von paulevs und dem BetterX Team bzw. der Standalone-Version von PinkGoosik (github.com/PinkGoosik/better-end-sky, MIT-Lizenz), übernommen und an Natural Visuals angepasst. Ist die Option aus, malt Natural Visuals weiter den eigenen End-Himmel.
+Special thanks to the creators of LumaLight, LambDynamicLights, PomPom, Fancy World Animations, and Better End Sky for ideas and references that helped inspire various features. Implementations have been adapted or independently developed as described in the original documentation.
