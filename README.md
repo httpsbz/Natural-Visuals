@@ -1,8 +1,10 @@
 # Natural Visuals
 
-A Fabric client-side mod for Minecraft 26.2 that aims to recreate Bedrock Edition's *Vibrant Visuals*.
+A Fabric client-side mod for Minecraft 26.2 that aims to recreate Bedrock Edition's *Vibrant Visuals*, with additional visual enhancements.
 
 **Authors:** ImGatsu, Seo.
+
+**Join our Discord community:** https://discord.gg/S7pRNSxSd
 
 It runs directly on **Blaze3D (OpenGL backend)** and **Sodium 0.9.2**, without Iris or a shader pack.
 
